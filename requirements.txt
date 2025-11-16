@@ -1,0 +1,11 @@
+fastapi[all]
+pydantic
+langchain-core
+langchain-openai
+langgraph
+python-multipart
+aiofiles
+requests
+langchain_google_genai
+pymongo
+load_dotenv
