@@ -19,6 +19,15 @@ async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
+@app.post("/upload")
+async def upload_file(file: UploadFile):
+    file_location = f"uploads/{file.filename}"
+    with open(file_location, "wb") as f:
+        f.write(await file.read())
+
+    return {"file_path": file_location}
+
+
 @app.websocket("/ws")
 async def websocket_chat(websocket: WebSocket):
     await websocket.accept()

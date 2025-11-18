@@ -11,6 +11,7 @@ from app.session_store import load_session, save_session_to_db
 from prompts.rag_prompt import generate_rag_prompt
 from prompts.lab_analyzer_prompt import generate_lab_analyzer_prompt
 from IPython.display import Image, display
+from app.utils import extract_text_from_pdf
 
 load_dotenv()
 
@@ -51,7 +52,6 @@ class DoctorAgentWorkflow:
             model="gemini-2.5-flash",
             temperature=0.3
         )
-        self.OCR_SERVICE_URL = "http://localhost:8000/service/ocr_process"
 
     def load_session_memory(self, state: GraphState):
         prev = load_session(state["session_id"], state["user_id"])
@@ -90,10 +90,10 @@ class DoctorAgentWorkflow:
         }
 
     async def call_ocr(self, state: GraphState):
+        file_path = state.get("file_path")
         try:
-            res = requests.post(self.OCR_SERVICE_URL, json={"file_url": state["file_url"]})
-            res.raise_for_status()
-            text = res.json().get("ocr_text", "")
+            extracted_text = extract_text_from_pdf(file_path)
+            return {"ocr_text": extracted_text}
         except Exception as e:
             text = f"OCR_ERROR: {str(e)}"
 
@@ -213,12 +213,12 @@ class DoctorAgentWorkflow:
         workflow.add_node("respond", self.respond_to_user)
         workflow.add_node("ask_for_upload", self.respond_to_user)
         workflow.add_node("end_conversation", self.end_conversation)
-        workflow.add_node("router_node", self.router)
 
         workflow.set_entry_point("rag")
-        workflow.add_edge("rag", "router_node")
+
+        # Router: DO NOT add it as a node
         workflow.add_conditional_edges(
-            "router_node",
+            "rag",
             self.router,
             {
                 "call_ocr": "call_ocr",
@@ -237,14 +237,8 @@ class DoctorAgentWorkflow:
         workflow.add_edge("ask_for_upload", END)
         workflow.add_edge("end_conversation", END)
 
-        graph = workflow.compile()
+        return workflow.compile()
 
-        # png_bytes = graph.get_graph().draw_mermaid_png()
-        # with open("graph_workflow.png", "wb") as f:
-        #     f.write(png_bytes)
-
-        # print("Graph saved as graph_workflow.png")
-        return graph
 
 
 # agent = DoctorAgentWorkflow()

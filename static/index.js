@@ -4,7 +4,6 @@ const userInput = document.getElementById("userInput");
 const chatWindow = document.getElementById("chat-window");
 const fileInput = document.getElementById("fileInput");
 
-// ---- WEBSOCKET SETUP ----
 let socket = new WebSocket("ws://localhost:8000/ws");
 
 socket.onopen = () => {
@@ -19,8 +18,6 @@ socket.onmessage = (event) => {
 socket.onerror = (error) => {
   console.error("WebSocket error:", error);
 };
-
-// ---- UI LOGIC (UNCHANGED) ----
 
 function addUserMessage(text) {
   const msg = document.createElement("div");
@@ -62,6 +59,10 @@ function getTime() {
   });
 }
 
+function scrollToBottom() {
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
 async function sendMessage() {
   const text = userInput.value.trim();
   if (!text) return;
@@ -71,27 +72,56 @@ async function sendMessage() {
 
   showTyping();
 
-  // ---- Send message to FastAPI WebSocket ----
-  socket.send(text);
+  socket.send(
+    JSON.stringify({
+      input_event: "user_message",
+      user_message: text,
+    })
+  );
 }
-
-// File uploader (unchanged)
-uploadBtn.onclick = () => fileInput.click();
-
-fileInput.onchange = () => {
-  const file = fileInput.files[0];
-  if (!file) return;
-
-  addUserMessage(`📄 Uploaded file: <b>${file.name}</b>`);
-
-  // TODO: send to /upload-lab API
-};
 
 sendBtn.onclick = sendMessage;
 userInput.addEventListener("keypress", (e) => {
   if (e.key === "Enter") sendMessage();
 });
 
-function scrollToBottom() {
-  chatWindow.scrollTop = chatWindow.scrollHeight;
-}
+uploadBtn.onclick = () => fileInput.click();
+
+fileInput.onchange = async () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  addUserMessage(`Uploading file: <b>${file.name}</b>`);
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const response = await fetch("http://localhost:8000/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) throw new Error("Upload failed");
+
+    const data = await response.json();
+    console.log("Upload result:", data);
+
+    const filePath = data.file_path;
+
+    addUserMessage(`File uploaded successfully!`);
+
+    showTyping();
+
+    socket.send(
+      JSON.stringify({
+        input_event: "file_uploaded",
+        file_path: filePath,
+      })
+    );
+
+  } catch (err) {
+    console.error(err);
+    addAIMessage("File upload failed. Try again.");
+  }
+};
