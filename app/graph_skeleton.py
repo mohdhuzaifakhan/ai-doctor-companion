@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from app.session_store import load_session, save_session_to_db
 from prompts.rag_prompt import generate_rag_prompt
 from prompts.lab_analyzer_prompt import generate_lab_analyzer_prompt
+from IPython.display import Image, display
 
 load_dotenv()
 
@@ -212,11 +213,12 @@ class DoctorAgentWorkflow:
         workflow.add_node("respond", self.respond_to_user)
         workflow.add_node("ask_for_upload", self.respond_to_user)
         workflow.add_node("end_conversation", self.end_conversation)
+        workflow.add_node("router_node", self.router)
 
         workflow.set_entry_point("rag")
-
+        workflow.add_edge("rag", "router_node")
         workflow.add_conditional_edges(
-            "rag",
+            "router_node",
             self.router,
             {
                 "call_ocr": "call_ocr",
@@ -235,7 +237,14 @@ class DoctorAgentWorkflow:
         workflow.add_edge("ask_for_upload", END)
         workflow.add_edge("end_conversation", END)
 
-        return workflow.compile()
+        graph = workflow.compile()
+
+        # png_bytes = graph.get_graph().draw_mermaid_png()
+        # with open("graph_workflow.png", "wb") as f:
+        #     f.write(png_bytes)
+
+        # print("Graph saved as graph_workflow.png")
+        return graph
 
 
 # agent = DoctorAgentWorkflow()
