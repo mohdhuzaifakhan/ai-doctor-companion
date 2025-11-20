@@ -3,9 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-
+from app.utils import get_presigned_url , upload_file_on_presigned_url
 import uuid
 from app.graph_skeleton import DoctorAgentWorkflow
+import os
 
 app = FastAPI(title="AI Doctor Companion")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -27,6 +28,47 @@ async def upload_file(file: UploadFile):
 
     return {"file_path": file_location}
 
+
+# @app.post("/upload")
+# async def upload_file(file: UploadFile):
+#     local_path = f"uploads/{file.filename}"
+#     os.makedirs("uploads", exist_ok=True)
+
+#     file_bytes = await file.read()
+
+#     with open(local_path, "wb") as f:
+#         f.write(file_bytes)
+
+#     presigned_url = get_presigned_url(file_name=file.filename)
+#     if not presigned_url:
+#         return {
+#             "success": False,
+#             "message": "Failed to get presigned URL",
+#             "file_path": local_path
+#         }
+
+#     try:
+#         upload_res = upload_file_on_presigned_url(presigned_url, file_path=local_path)
+#         if upload_res.status_code not in (200, 204):
+#             return {
+#                 "success": False,
+#                 "message": f"Cloud upload failed: {upload_res.status_code} - {upload_res.text}",
+#                 "file_path": local_path
+#             }
+#     except Exception as e:
+#         return {
+#             "success": False,
+#             "message": str(e),
+#             "file_path": local_path
+#         }
+
+#     cloud_url = presigned_url.split("?")[0]
+#     return {
+#         "success": True,
+#         "file": file.filename,
+#         "file_path": local_path,
+#         "cloud_url": cloud_url
+#     }
 
 @app.websocket("/ws")
 async def websocket_chat(websocket: WebSocket):
